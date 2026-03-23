@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Quotation Tester</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #161a23;
+      --surface2:  #1e2330;
+      --border:    #2a2f3e;
+      --accent:    #4f8ef7;
+      --accent2:   #7c5af7;
+      --success:   #22c97a;
+      --error:     #f75a5a;
+      --warn:      #f7a935;
+      --text:      #dce3f0;
+      --muted:     #6b7494;
+      --radius:    12px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 60px;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    header .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    header .logo svg { width: 36px; height: 36px; }
+    header h1 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+
+    /* ── Card ── */
+    .card {
+      width: 100%;
+      max-width: 720px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+    }
+
+    .field { margin-bottom: 20px; }
+    label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    input, textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.92rem;
+      font-family: inherit;
+      padding: 11px 14px;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+      resize: vertical;
+    }
+    input:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79,142,247,.15);
+    }
+    textarea { min-height: 120px; line-height: 1.6; }
+
+    .token-wrap { position: relative; }
+    .token-wrap input { padding-right: 44px; font-family: 'Courier New', monospace; font-size: 0.82rem; }
+    .toggle-eye {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: var(--muted);
+      transition: color .2s;
+    }
+    .toggle-eye:hover { color: var(--accent); }
+
+    .row { display: flex; gap: 12px; }
+    .row .field { flex: 1; }
+
+    /* ── Button ── */
+    button.send {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity .2s, transform .1s;
+      margin-top: 4px;
+    }
+    button.send:hover { opacity: .88; }
+    button.send:active { transform: scale(.98); }
+    button.send:disabled { opacity: .45; cursor: not-allowed; }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result ── */
+    .result {
+      margin-top: 28px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: none;
+    }
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 20px;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .result.success .result-header { background: rgba(34,201,122,.12); color: var(--success); }
+    .result.error   .result-header { background: rgba(247,90,90,.12);  color: var(--error);   }
+    .result.warn    .result-header { background: rgba(247,169,53,.12); color: var(--warn);    }
+
+    .result-body { background: var(--surface2); padding: 20px; }
+
+    /* Quotation badge */
+    .q-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, rgba(79,142,247,.15), rgba(124,90,247,.15));
+      border: 1px solid rgba(79,142,247,.35);
+      border-radius: 8px;
+      padding: 12px 20px;
+      margin-bottom: 16px;
+    }
+    .q-badge .q-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .q-badge .q-num  { font-size: 1.8rem; font-weight: 800; color: var(--accent); letter-spacing: -.02em; }
+    .copy-btn {
+      background: rgba(79,142,247,.15);
+      border: 1px solid rgba(79,142,247,.3);
+      color: var(--accent);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .copy-btn:hover { background: rgba(79,142,247,.28); }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .meta-chip {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .meta-chip .mc-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing:.06em; color: var(--muted); margin-bottom: 3px; }
+    .meta-chip .mc-val   { font-size: 0.88rem; font-weight: 600; }
+
+    details.raw { margin-top: 12px; }
+    details.raw summary {
+      cursor: pointer;
+      font-size: 0.78rem;
+      color: var(--muted);
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+    details.raw summary::before { content: '▶'; font-size: .65rem; transition: transform .2s; }
+    details.raw[open] summary::before { transform: rotate(90deg); }
+    details.raw pre {
+      margin-top: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #a8b4d0;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    /* ── History ── */
+    .history-section { width: 100%; max-width: 720px; margin-top: 28px; }
+    .history-section h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 12px; }
+    .history-list { display: flex; flex-direction: column; gap: 8px; }
+    .history-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.85rem;
+    }
+    .history-item .h-prompt { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-item .h-qno   { font-weight: 700; color: var(--accent); white-space: nowrap; }
+    .history-item .h-dot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .history-item .h-dot.ok  { background: var(--success); }
+    .history-item .h-dot.err { background: var(--error); }
+    .history-item .h-time { color: var(--muted); font-size: 0.75rem; white-space: nowrap; }
+
+    .no-history { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 20px; }
+
+    footer { margin-top: 40px; color: var(--muted); font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="36" height="36" rx="10" fill="url(#lg)"/>
+      <path d="M10 24 L18 12 L26 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="18" cy="12" r="2.5" fill="white"/>
+      <defs>
+        <linearGradient id="lg" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnPoint">
+          <stop stop-color="#4f8ef7"/>
+          <stop offset="1" stop-color="#7c5af7"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <h1>AI Quotation Tester</h1>
+  </div>
+  <p>Apple Tech Labs · Stage v2 · n8n Production Webhook</p>
+</header>
+
+<div class="card">
+
+  <!-- Token -->
+  <div class="field">
+    <label>Bearer Token</label>
+    <div class="token-wrap">
+      <input type="password" id="tokenInput" placeholder="eyJ0eXAiOiJKV1QiLCJhbGciOi..." />
+      <button class="toggle-eye" onclick="toggleToken()" title="Show/Hide token">
+        <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Session -->
+  <div class="row">
+    <div class="field">
+      <label>Session ID <span style="color:var(--muted);text-transform:none;font-weight:400">(auto-generated)</span></label>
+      <input type="text" id="sessionInput" placeholder="session_abc123" />
+    </div>
+  </div>
+
+  <!-- Prompt -->
+  <div class="field">
+    <label>Prompt / Chat Input</label>
+    <textarea id="promptInput" placeholder="e.g. Create a hotel for 3 nights Hanoi and 2 nights Phu Quoc for 6 adults from May 10 with 2 double rooms and pvt tours."></textarea>
+  </div>
+
+  <button class="send" id="sendBtn" onclick="sendRequest()">
+    <span class="spinner" id="spinner"></span>
+    <span id="btnText">Send Request</span>
+  </button>
+
+  <!-- Result -->
+  <div class="result" id="result">
+    <div class="result-header" id="resultHeader"></div>
+    <div class="result-body" id="resultBody"></div>
+  </div>
+</div>
+
+<!-- History -->
+<div class="history-section">
+  <h2>Request History</h2>
+  <div class="history-list" id="historyList">
+    <div class="no-history">No requests yet. Send a prompt above.</div>
+  </div>
+</div>
+
+<footer>Webhook: https://aahaas-ai.app.n8n.cloud/webhook/085ddfb8-f53a-456e-b662-85de50da8148</footer>
+
+<script>
+  const WEBHOOK = 'https://aahaas-ai.app.n8n.cloud/webhook/085ddfb8-f53a-456e-b662-85de50da8148';
+  const history = [];
+
+  // Auto session ID
+  document.getElementById('sessionInput').value = 'session_' + Math.random().toString(36).slice(2, 9);
+
+  function toggleToken() {
+    const inp = document.getElementById('tokenInput');
+    const icon = document.getElementById('eyeIcon');
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      icon.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+        <line x1="1" y1="1" x2="23" y2="23"/>`;
+    } else {
+      inp.type = 'password';
+      icon.innerHTML = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+    }
+  }
+
+  function setLoading(on) {
+    const btn  = document.getElementById('sendBtn');
+    const spin = document.getElementById('spinner');
+    const txt  = document.getElementById('btnText');
+    btn.disabled = on;
+    spin.style.display = on ? 'block' : 'none';
+    txt.textContent = on ? 'Sending…' : 'Send Request';
+  }
+
+  function showResult(type, headerText, bodyHTML) {
+    const r  = document.getElementById('result');
+    const rh = document.getElementById('resultHeader');
+    const rb = document.getElementById('resultBody');
+    r.className  = 'result ' + type;
+    r.style.display = 'block';
+
+    const icons = {
+      success: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>`,
+      error:   `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+      warn:    `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m10.29 3.86-8.63 14.93A1 1 0 0 0 2.54 20h17.92a1 1 0 0 0 .88-1.21L13.71 3.86a1 1 0 0 0-1.72 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    };
+    rh.innerHTML = (icons[type] || '') + headerText;
+    rb.innerHTML = bodyHTML;
+    r.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function addHistory(prompt, quotationNo, status, elapsed) {
+    history.unshift({ prompt, quotationNo, status, elapsed, time: new Date() });
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('historyList');
+    if (!history.length) { list.innerHTML = '<div class="no-history">No requests yet.</div>'; return; }
+    list.innerHTML = history.map(h => {
+      const shortPrompt = h.prompt.length > 80 ? h.prompt.slice(0, 77) + '…' : h.prompt;
+      const timeStr = h.time.toLocaleTimeString();
+      const qDisplay = h.quotationNo ? `Q# ${h.quotationNo}` : (h.status === 'success' ? 'success' : 'error');
+      return `<div class="history-item">
+        <div class="h-dot ${h.status === 'success' ? 'ok' : 'err'}"></div>
+        <div class="h-prompt" title="${h.prompt.replace(/"/g,'&quot;')}">${shortPrompt}</div>
+        <div class="h-qno">${qDisplay}</div>
+        <div class="h-time">${timeStr} · ${h.elapsed}s</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function sendRequest() {
+    const token   = document.getElementById('tokenInput').value.trim();
+    const session = document.getElementById('sessionInput').value.trim() || ('session_' + Date.now());
+    const prompt  = document.getElementById('promptInput').value.trim();
+
+    if (!token)  { showResult('warn', 'Missing Bearer Token', '<p style="color:var(--muted)">Please enter your bearer token before sending.</p>'); return; }
+    if (!prompt) { showResult('warn', 'Missing Prompt',       '<p style="color:var(--muted)">Please enter a prompt to send.</p>'); return; }
+
+    setLoading(true);
+    document.getElementById('result').style.display = 'none';
+
+    const payload = { chatInput: prompt, sessionId: session, bearerToken: token, action: 'sendMessage' };
+    const t0 = Date.now();
+
+    let rawBody = '', parsed = null, httpStatus = '?';
+    try {
+      const res = await fetch(WEBHOOK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      httpStatus = res.status;
+      rawBody = await res.text();
+      try { parsed = JSON.parse(rawBody); } catch {}
+    } catch (err) {
+      setLoading(false);
+      showResult('error', 'Network Error', `<p style="color:var(--muted)">${err.message}</p>`);
+      return;
+    }
+
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    setLoading(false);
+
+    const isSuccess = parsed?.status === 'success';
+    const isError   = parsed?.status === 'error';
+    const qNo       = parsed?.quotation_no;
+    const msg       = parsed?.message || '';
+
+    // Meta chips
+    const metaHtml = `<div class="meta-grid">
+      <div class="meta-chip"><div class="mc-label">HTTP Status</div><div class="mc-val">${httpStatus}</div></div>
+      <div class="meta-chip"><div class="mc-label">Response Time</div><div class="mc-val">${elapsed}s</div></div>
+      <div class="meta-chip"><div class="mc-label">Status</div><div class="mc-val" style="color:${isSuccess?'var(--success)':isError?'var(--error)':'var(--warn)'}">${parsed?.status||'unknown'}</div></div>
+      <div class="meta-chip"><div class="mc-label">Session</div><div class="mc-val" style="font-size:.78rem;">${session}</div></div>
+    </div>`;
+
+    // Quotation badge
+    const qBadge = qNo ? `<div class="q-badge">
+      <div>
+        <div class="q-label">Quotation Number</div>
+        <div class="q-num">${qNo}</div>
+      </div>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText('${qNo}').then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)})">Copy</button>
+    </div>` : '';
+
+    // Message
+    const msgHtml = msg ? `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:.88rem;line-height:1.7;color:${isError?'var(--error)':'var(--text)'};margin-bottom:12px;">${msg.replace(/</g,'&lt;')}</div>` : '';
+
+    // Raw
+    const rawHtml = `<details class="raw"><summary>Raw JSON Response</summary><pre>${JSON.stringify(parsed||rawBody,null,2).replace(/</g,'&lt;')}</pre></details>`;
+
+    const bodyHtml = qBadge + metaHtml + msgHtml + rawHtml;
+
+    if (isSuccess) {
+      showResult('success', qNo ? `Quotation #${qNo} created successfully` : 'Request completed successfully', bodyHtml);
+    } else if (isError) {
+      showResult('error', 'Request Failed', bodyHtml);
+    } else {
+      showResult('warn', `HTTP ${httpStatus} — Unexpected Response`, bodyHtml);
+    }
+
+    addHistory(prompt, qNo, isSuccess ? 'success' : 'error', elapsed);
+
+    // New session for next request
+    document.getElementById('sessionInput').value = 'session_' + Math.random().toString(36).slice(2, 9);
+  }
+
+  // Send on Ctrl+Enter in textarea
+  document.getElementById('promptInput').addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'Enter') sendRequest();
+  });
+</script>
+</body>
+</html>
